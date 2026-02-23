@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oracle — Tarot & I Ching</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Cormorant+SC:wght@300;400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1714;
+    --ink-soft: #2e2b27;
+    --ink-faint: #4a4540;
+    --stone: #b8b0a4;
+    --stone-light: #d4cfc9;
+    --parchment: #f0ebe3;
+    --parchment-dark: #e4ddd3;
+    --parchment-mid: #ece6dc;
+    --gold: #8a7a5e;
+    --gold-light: #b09e7e;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.045;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(26,23,20,0.18) 100%);
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+  }
+
+  /* Header */
+  header {
+    flex-shrink: 0;
+    text-align: center;
+    padding: 44px 0 24px;
+    position: relative;
+  }
+
+  header::after {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 32px;
+    background: linear-gradient(to bottom, var(--gold), transparent);
+    margin: 18px auto 0;
+  }
+
+  .sigil {
+    display: inline-block;
+    width: 42px;
+    height: 42px;
+    position: relative;
+    margin-bottom: 14px;
+    animation: breathe 6s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.04); }
+  }
+
+  .sigil svg { width: 100%; height: 100%; }
+
+  h1 {
+    font-family: 'Cormorant SC', serif;
+    font-weight: 300;
+    font-size: 1.15rem;
+    letter-spacing: 0.45em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .subtitle {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 0.82rem;
+    color: var(--stone);
+    letter-spacing: 0.08em;
+    margin-top: 5px;
+  }
+
+  /* Scroll area */
+  .scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0 24px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--stone-light) transparent;
+  }
+
+  .scroll-area::-webkit-scrollbar { width: 3px; }
+  .scroll-area::-webkit-scrollbar-track { background: transparent; }
+  .scroll-area::-webkit-scrollbar-thumb { background: var(--stone-light); border-radius: 2px; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    opacity: 0.45;
+    user-select: none;
+    padding-bottom: 40px;
+  }
+
+  .empty-state p {
+    font-style: italic;
+    font-size: 0.9rem;
+    color: var(--ink-faint);
+    text-align: center;
+    line-height: 1.7;
+    max-width: 320px;
+  }
+
+  .hexagram-bg {
+    font-size: 2.2rem;
+    opacity: 0.3;
+    letter-spacing: 0.3em;
+  }
+
+  /* Messages */
+  .message {
+    margin-bottom: 28px;
+    animation: fadeUp 0.6s ease forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message.user {
+    text-align: right;
+  }
+
+  .user-bubble {
+    display: inline-block;
+    background: var(--ink-soft);
+    color: var(--parchment);
+    padding: 11px 18px;
+    border-radius: 2px;
+    font-size: 0.92rem;
+    font-style: italic;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    max-width: 80%;
+    text-align: left;
+    position: relative;
+  }
+
+  .oracle-response {
+    background: var(--parchment-dark);
+    border: 1px solid var(--parchment-mid);
+    border-left: 2px solid var(--gold);
+    padding: 28px 28px 24px;
+    position: relative;
+    border-radius: 1px;
+  }
+
+  .oracle-response::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid rgba(138,122,94,0.1);
+    pointer-events: none;
+  }
+
+  /* Cards row */
+  .cards-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 22px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(138,122,94,0.2);
+  }
+
+  .card-item {
+    flex: 1;
+    text-align: center;
+  }
+
+  .card-glyph {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 6px;
+    opacity: 0.6;
+  }
+
+  .card-type {
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    color: var(--stone);
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .card-name {
+    font-family: 'IM Fell English', serif;
+    font-size: 0.88rem;
+    color: var(--gold);
+    display: block;
+    line-height: 1.3;
+  }
+
+  .card-num {
+    font-size: 0.72rem;
+    color: var(--stone);
+    font-style: italic;
+    display: block;
+    margin-top: 2px;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--gold);
+    font-size: 0.6rem;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0.4;
+    padding-top: 8px;
+  }
+  .divider::before, .divider::after {
+    content: '⋮';
+    font-size: 1rem;
+  }
+
+  /* Reading sections */
+  .reading-section {
+    margin-bottom: 16px;
+  }
+
+  .section-label {
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.35em;
+    color: var(--stone);
+    display: block;
+    margin-bottom: 7px;
+  }
+
+  .reading-text {
+    font-size: 0.93rem;
+    line-height: 1.8;
+    color: var(--ink-soft);
+  }
+
+  .reading-text em {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .action-items {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(138,122,94,0.15);
+  }
+
+  .action-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .action-list li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--ink-faint);
+  }
+
+  .action-list li::before {
+    content: '—';
+    color: var(--gold);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Loading */
+  .loading-oracle {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px 0 8px;
+    animation: fadeUp 0.4s ease forwards;
+  }
+
+  .casting-text {
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    color: var(--stone);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  .coins {
+    display: flex;
+    gap: 8px;
+  }
+
+  .coin {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    animation: flip 1.2s ease-in-out infinite;
+  }
+  .coin:nth-child(2) { animation-delay: 0.2s; }
+  .coin:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes flip {
+    0%, 100% { transform: scaleY(1); background: transparent; }
+    50% { transform: scaleY(0.1); background: var(--gold); }
+  }
+
+  /* Input area */
+  footer {
+    flex-shrink: 0;
+    padding: 16px 0 32px;
+    position: relative;
+  }
+
+  footer::before {
+    content: '';
+    display: block;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--stone-light), transparent);
+    margin-bottom: 18px;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    position: relative;
+  }
+
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--stone-light);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-style: italic;
+    line-height: 1.6;
+    padding: 8px 0 10px;
+    resize: none;
+    outline: none;
+    min-height: 42px;
+    max-height: 120px;
+    transition: border-color 0.3s;
+    caret-color: var(--gold);
+  }
+
+  textarea::placeholder {
+    color: var(--stone);
+    font-style: italic;
+  }
+
+  textarea:focus {
+    border-bottom-color: var(--gold);
+  }
+
+  .ask-btn {
+    background: none;
+    border: 1px solid var(--stone-light);
+    color: var(--ink-faint);
+    padding: 9px 18px;
+    font-family: 'Cormorant SC', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ask-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--ink-soft);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+
+  .ask-btn span { position: relative; z-index: 1; transition: color 0.3s; }
+
+  .ask-btn:hover::before { transform: scaleX(1); }
+  .ask-btn:hover span { color: var(--parchment); }
+  .ask-btn:hover { border-color: var(--ink-soft); }
+
+  .ask-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .ask-btn:disabled::before { transform: scaleX(0) !important; }
+  .ask-btn:disabled span { color: var(--ink-faint) !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="sigil">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Eye of the oracle -->
+        <ellipse cx="50" cy="50" rx="40" ry="22" stroke="#8a7a5e" stroke-width="0.8" opacity="0.6"/>
+        <circle cx="50" cy="50" r="12" stroke="#8a7a5e" stroke-width="0.8" opacity="0.8"/>
+        <circle cx="50" cy="50" r="4" fill="#8a7a5e" opacity="0.5"/>
+        <!-- Lines -->
+        <line x1="10" y1="50" x2="38" y2="50" stroke="#8a7a5e" stroke-width="0.6" opacity="0.4"/>
+        <line x1="62" y1="50" x2="90" y2="50" stroke="#8a7a5e" stroke-width="0.6" opacity="0.4"/>
+        <!-- Triangle up -->
+        <path d="M50 18 L65 44 L35 44Z" stroke="#8a7a5e" stroke-width="0.6" fill="none" opacity="0.25"/>
+        <!-- Triangle down -->
+        <path d="M50 82 L65 56 L35 56Z" stroke="#8a7a5e" stroke-width="0.6" fill="none" opacity="0.25"/>
+      </svg>
+    </div>
+    <h1>Oracle</h1>
+    <p class="subtitle">Tarot &amp; I Ching — consultation</p>
+  </header>
+
+  <div class="scroll-area" id="scrollArea">
+    <div class="empty-state" id="emptyState">
+      <div class="hexagram-bg">☰ ☷ ☲ ☵</div>
+      <p>Bring your question into stillness.<br>The cards and hexagram will meet you there.</p>
+    </div>
+    <div id="messages"></div>
+  </div>
+
+  <footer>
+    <div class="input-row">
+      <textarea id="questionInput" placeholder="What weighs on your mind or heart…" rows="1"></textarea>
+      <button class="ask-btn" id="askBtn" onclick="askOracle()"><span>Consult</span></button>
+    </div>
+  </footer>
+</div>
+
+<script>
+// Tarot deck
+const MAJOR_ARCANA = [
+  {name:"The Fool",num:"0",glyph:"🌀"},
+  {name:"The Magician",num:"I",glyph:"⚡"},
+  {name:"The High Priestess",num:"II",glyph:"🌙"},
+  {name:"The Empress",num:"III",glyph:"🌿"},
+  {name:"The Emperor",num:"IV",glyph:"🏔"},
+  {name:"The Hierophant",num:"V",glyph:"⛪"},
+  {name:"The Lovers",num:"VI",glyph:"♾"},
+  {name:"The Chariot",num:"VII",glyph:"⚔"},
+  {name:"Strength",num:"VIII",glyph:"🦁"},
+  {name:"The Hermit",num:"IX",glyph:"🕯"},
+  {name:"Wheel of Fortune",num:"X",glyph:"⊕"},
+  {name:"Justice",num:"XI",glyph:"⚖"},
+  {name:"The Hanged Man",num:"XII",glyph:"✝"},
+  {name:"Death",num:"XIII",glyph:"🌑"},
+  {name:"Temperance",num:"XIV",glyph:"💧"},
+  {name:"The Devil",num:"XV",glyph:"🔗"},
+  {name:"The Tower",num:"XVI",glyph:"⚡"},
+  {name:"The Star",num:"XVII",glyph:"✦"},
+  {name:"The Moon",num:"XVIII",glyph:"☽"},
+  {name:"The Sun",num:"XIX",glyph:"☀"},
+  {name:"Judgement",num:"XX",glyph:"📯"},
+  {name:"The World",num:"XXI",glyph:"◎"},
+];
+
+const SUITS = ["Wands","Cups","Swords","Pentacles"];
+const COURT = ["Ace","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Page","Knight","Queen","King"];
+const SUIT_GLYPHS = {Wands:"🔥",Cups:"💧",Swords:"⚔",Pentacles:"⭕"};
+
+// I Ching hexagrams (64)
+const HEXAGRAMS = [
+  {num:1,name:"Heaven",symbol:"☰☰",meaning:"Creative force, strength, initiation"},
+  {num:2,name:"Earth",symbol:"☷☷",meaning:"Receptivity, yielding, nurturing"},
+  {num:3,name:"Difficulty at the Beginning",symbol:"☵☳",meaning:"Chaos yields to order through perseverance"},
+  {num:4,name:"Youthful Folly",symbol:"☶☵",meaning:"Inexperience, learning, seeking guidance"},
+  {num:5,name:"Waiting",symbol:"☵☰",meaning:"Patience, nourishment, trust in timing"},
+  {num:6,name:"Conflict",symbol:"☰☵",meaning:"Tension, dispute, seeking resolution"},
+  {num:7,name:"The Army",symbol:"☷☵",meaning:"Discipline, collective strength, leadership"},
+  {num:8,name:"Holding Together",symbol:"☵☷",meaning:"Union, alliance, belonging"},
+  {num:11,name:"Peace",symbol:"☷☰",meaning:"Harmony, prosperity, balance of forces"},
+  {num:12,name:"Standstill",symbol:"☰☷",meaning:"Stagnation, withdrawal, inner cultivation"},
+  {num:14,name:"Great Possession",symbol:"☲☰",meaning:"Abundance, mastery, magnanimous power"},
+  {num:15,name:"Modesty",symbol:"☷☶",meaning:"Humility, simplicity, quiet influence"},
+  {num:16,name:"Enthusiasm",symbol:"☳☷",meaning:"Joy, momentum, inspired action"},
+  {num:17,name:"Following",symbol:"☱☳",meaning:"Adaptation, flow, joyful alignment"},
+  {num:20,name:"Contemplation",symbol:"☴☷",meaning:"Observation, perspective, inner seeing"},
+  {num:22,name:"Grace",symbol:"☶☲",meaning:"Elegance, adornment, authentic beauty"},
+  {num:24,name:"Return",symbol:"☷☳",meaning:"Renewal, recovery, cyclical rebirth"},
+  {num:25,name:"Innocence",symbol:"☰☳",meaning:"Spontaneity, natural action, trust"},
+  {num:29,name:"Abysmal Water",symbol:"☵☵",meaning:"Depth, courage through danger, flow"},
+  {num:30,name:"Clinging Fire",symbol:"☲☲",meaning:"Clarity, illumination, interdependence"},
+  {num:31,name:"Influence",symbol:"☱☶",meaning:"Attraction, courtship, mutual resonance"},
+  {num:32,name:"Duration",symbol:"☳☴",meaning:"Endurance, consistency, sacred patterns"},
+  {num:33,name:"Retreat",symbol:"☰☶",meaning:"Wise withdrawal, timing, strategic rest"},
+  {num:36,name:"Darkening of Light",symbol:"☷☲",meaning:"Perseverance in darkness, inner flame"},
+  {num:37,name:"The Family",symbol:"☴☲",meaning:"Relationships, roles, home as foundation"},
+  {num:40,name:"Deliverance",symbol:"☳☵",meaning:"Release, liberation, clearing obstacles"},
+  {num:41,name:"Decrease",symbol:"☶☱",meaning:"Simplification, sacrifice bearing fruit"},
+  {num:42,name:"Increase",symbol:"☴☳",meaning:"Growth, generosity, fortunate expansion"},
+  {num:43,name:"Breakthrough",symbol:"☱☰",meaning:"Decisive action, resolution, truth spoken"},
+  {num:44,name:"Coming to Meet",symbol:"☰☴",meaning:"Encounter, influence, unexpected meeting"},
+  {num:48,name:"The Well",symbol:"☵☴",meaning:"Nourishment, source, inexhaustible depth"},
+  {num:49,name:"Revolution",symbol:"☱☲",meaning:"Change, molting, transformation complete"},
+  {num:50,name:"The Cauldron",symbol:"☲☴",meaning:"Nourishing transformation, culture, renewal"},
+  {num:51,name:"Thunder",symbol:"☳☳",meaning:"Shock, awakening, sacred fear"},
+  {num:52,name:"Keeping Still",symbol:"☶☶",meaning:"Meditation, stillness, mountain presence"},
+  {num:54,name:"The Marrying Maiden",symbol:"☳☱",meaning:"Subordinate position, adaptation, grace"},
+  {num:55,name:"Abundance",symbol:"☳☲",meaning:"Fullness, peak moment, transient glory"},
+  {num:57,name:"Gentle Wind",symbol:"☴☴",meaning:"Penetration, subtle influence, persistence"},
+  {num:58,name:"The Joyous Lake",symbol:"☱☱",meaning:"Joy, openness, exchange, delight"},
+  {num:59,name:"Dispersion",symbol:"☴☵",meaning:"Dissolution, breaking barriers, flowing"},
+  {num:60,name:"Limitation",symbol:"☵☱",meaning:"Boundaries, structure, conscious restraint"},
+  {num:61,name:"Inner Truth",symbol:"☴☱",meaning:"Sincerity, trust, inner knowing"},
+  {num:63,name:"After Completion",symbol:"☵☲",meaning:"Equilibrium achieved, new cycle begins"},
+  {num:64,name:"Before Completion",symbol:"☲☵",meaning:"Threshold, almost there, careful approach"},
+];
+
+function getRandomCard() {
+  if (Math.random() < 0.4) {
+    return {...MAJOR_ARCANA[Math.floor(Math.random()*MAJOR_ARCANA.length)], type: "Major Arcana"};
+  }
+  const suit = SUITS[Math.floor(Math.random()*SUITS.length)];
+  const court = COURT[Math.floor(Math.random()*COURT.length)];
+  return {
+    name: `${court} of ${suit}`,
+    num: court === "Ace" ? "I" : court,
+    glyph: SUIT_GLYPHS[suit],
+    type: `${suit}`
+  };
+}
+
+function getRandomHexagram() {
+  return HEXAGRAMS[Math.floor(Math.random()*HEXAGRAMS.length)];
+}
+
+function autoResize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+}
+
+const textarea = document.getElementById('questionInput');
+textarea.addEventListener('input', () => autoResize(textarea));
+textarea.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askOracle(); }
+});
+
+async function askOracle() {
+  const question = textarea.value.trim();
+  if (!question) return;
+
+  const btn = document.getElementById('askBtn');
+  const messages = document.getElementById('messages');
+  const emptyState = document.getElementById('emptyState');
+  const scrollArea = document.getElementById('scrollArea');
+
+  emptyState.style.display = 'none';
+  btn.disabled = true;
+  textarea.value = '';
+  autoResize(textarea);
+
+  // User message
+  const userDiv = document.createElement('div');
+  userDiv.className = 'message user';
+  userDiv.innerHTML = `<div class="user-bubble">${question}</div>`;
+  messages.appendChild(userDiv);
+
+  // Loading
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'loading-oracle';
+  loadingDiv.innerHTML = `
+    <div class="casting-text">Casting the oracle…</div>
+    <div class="coins"><div class="coin"></div><div class="coin"></div><div class="coin"></div></div>
+  `;
+  messages.appendChild(loadingDiv);
+  scrollArea.scrollTop = scrollArea.scrollHeight;
+
+  // Draw cards
+  const card1 = getRandomCard();
+  const card2 = getRandomCard();
+  const hexagram = getRandomHexagram();
+
+  // Build prompt
+  const systemPrompt = `You are the Oracle — a serene, wise guide who interprets Tarot and I Ching with poetic clarity. 
+
+Your response must be structured in exactly this JSON format:
+{
+  "synthesis": "2-3 sentences weaving together what the Tarot cards and I Ching hexagram collectively reveal about the querent's situation. Poetic, present-tense, grounding.",
+  "shadow": "1-2 sentences on what to be aware of or release — the shadow or challenge in this reading.",
+  "path": "2-3 sentences of forward-looking guidance — empowering, specific to the question, meditative.",
+  "actions": ["action 1", "action 2", "action 3"]
+}
+
+Actions are short, specific, doable invitations — not generic advice. Think: one for body/presence, one for mind/reflection, one for the outer world.
+Tone: intimate, unhurried, like an ancient friend who sees you clearly. Never performative or fluffy. Speak directly.
+Return ONLY valid JSON.`;
+
+  const userPrompt = `Question: "${question}"
+
+Tarot Card 1: ${card1.name} (${card1.type})
+Tarot Card 2: ${card2.name} (${card2.type})  
+I Ching Hexagram: #${hexagram.num} — ${hexagram.name} (${hexagram.symbol}) — ${hexagram.meaning}
+
+Please interpret these together in direct response to the question.`;
+
+  let oracleData;
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    oracleData = JSON.parse(clean);
+  } catch(e) {
+    oracleData = {
+      synthesis: "The cards speak through silence when the channels are uncertain. Sit with what has already risen in you — the question itself is the beginning of the answer.",
+      shadow: "Be wary of seeking certainty where only movement lives.",
+      path: "Return to this inquiry when stillness permits. The oracle is patient.",
+      actions: ["Breathe and write your question again tomorrow morning", "Notice what arose in you while you waited", "Trust what you already know"]
+    };
+  }
+
+  // Remove loading
+  messages.removeChild(loadingDiv);
+
+  // Oracle response
+  const oracleDiv = document.createElement('div');
+  oracleDiv.className = 'message';
+  oracleDiv.innerHTML = `
+    <div class="oracle-response">
+      <div class="cards-row">
+        <div class="card-item">
+          <span class="card-glyph">${card1.glyph}</span>
+          <span class="card-type">${card1.type}</span>
+          <span class="card-name">${card1.name}</span>
+          <span class="card-num">${card1.num}</span>
+        </div>
+        <div class="divider"></div>
+        <div class="card-item">
+          <span class="card-glyph">${card2.glyph}</span>
+          <span class="card-type">${card2.type}</span>
+          <span class="card-name">${card2.name}</span>
+          <span class="card-num">${card2.num}</span>
+        </div>
+        <div class="divider"></div>
+        <div class="card-item">
+          <span class="card-glyph" style="font-size:1.5rem;letter-spacing:0.05em">${hexagram.symbol}</span>
+          <span class="card-type">I Ching</span>
+          <span class="card-name">${hexagram.name}</span>
+          <span class="card-num">#${hexagram.num}</span>
+        </div>
+      </div>
+
+      <div class="reading-section">
+        <span class="section-label">The Reading</span>
+        <p class="reading-text">${oracleData.synthesis}</p>
+      </div>
+
+      <div class="reading-section">
+        <span class="section-label">What to Hold Lightly</span>
+        <p class="reading-text">${oracleData.shadow}</p>
+      </div>
+
+      <div class="reading-section">
+        <span class="section-label">The Path</span>
+        <p class="reading-text">${oracleData.path}</p>
+      </div>
+
+      <div class="action-items">
+        <span class="section-label">Three Invitations</span>
+        <ul class="action-list">
+          ${oracleData.actions.map(a => `<li>${a}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+  `;
+  messages.appendChild(oracleDiv);
+
+  scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' });
+  btn.disabled = false;
+  textarea.focus();
+}
+</script>
+</body>
+</html>
